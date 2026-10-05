@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+venv/
+venv*/
+.venv/
+ENV/
+
+# Model weights and generated training artifacts
+inference-service/models/**/*.pt
+inference-service/models/**/*.pth
+inference-service/models/**/*.onnx
+inference-service/models/**/*.engine
+inference-service/models/**/*.torchscript
+inference-service/runs/
+inference-service/datasets/
+
+# Keep model directory structure in Git without committing weights
+!inference-service/models/README.md
+!inference-service/models/unused/README.md
+
+# Logs and runtime output
+inference-service/logs/*
+!inference-service/logs/.gitkeep
+inference-service/test_frame_*.jpg
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+inference-service/.env
+inference-service/.env.*
+!inference-service/.env.example
+laravel-backend/.env
+laravel-backend/.env.*
+!laravel-backend/.env.example
+
+# Python / frontend dependencies and build output
+node_modules/
+frontend/dist/
+frontend/.vite/
+laravel-backend/vendor/
+laravel-backend/node_modules/
+
+# Laravel generated files
+laravel-backend/storage/logs/*.log
+laravel-backend/bootstrap/cache/*.php
+laravel-backend/database/*.sqlite
+laravel-backend/database/*.sqlite-*
+
+# Local test imagery (re-add selected public samples explicitly if desired)
+imagesToTest/*
+!imagesToTest/README.md
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.vscode/
+.idea/

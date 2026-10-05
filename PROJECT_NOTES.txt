@@ -1,0 +1,61 @@
+KITCHEN HYGIENE SURVEILLANCE — PROJECT SUMMARY
+
+Purpose
+
+This project is a prototype for monitoring personal protective equipment (PPE) in a kitchen. It is intended to detect visible items such as gloves, hairnets and masks, identify possible non-compliance, and present live monitoring and recorded violation information through a web dashboard. The goal is to explore how computer vision and a web application can support hygiene checks; it is a prototype and should not be described as a replacement for human supervision.
+
+How the application is organized
+
+The project is split into three services so each part has a clear responsibility:
+
+- React with Vite provides the browser dashboard, live-monitoring screens, history and model settings. I chose React because its component approach made it practical to build reusable interface elements and update the screen as monitoring data changes. Vite provides the development server and frontend build workflow.
+- Laravel provides the application backend for settings, sessions and violation records. It gives the project a structured place to handle web/API requests and persistence.
+- Python with FastAPI runs the computer-vision service. Python has the computer-vision and deep-learning ecosystem needed for image/video processing, while FastAPI exposes the inference functions as HTTP endpoints for the other services.
+- OpenCV is used for video/image handling; Ultralytics YOLO is used for object detection; Axios connects the React interface to the APIs; Docker Compose describes the local services.
+
+Learning and development
+
+I built the interface by working through the official React documentation and applying those concepts in the dashboard, including components, state and effects. I used the official Vite guide for the frontend development/build setup. For the inference API, I referred to the FastAPI tutorial and used the project code to connect endpoints to the detector and stream logic. Laravel's official documentation was a reference for the backend structure and data handling.
+
+A major part of the learning process was iterative integration: getting the browser UI, Laravel API and Python inference service to communicate, then passing live camera/video frames through the detection and display flow. I also spent time comparing model weights and trying datasets. This exposed how strongly results depend on the labels, class definitions, image quality, camera viewpoint and whether examples resemble the actual kitchen footage.
+
+Why I tried pretrained/downloaded models
+
+I initially trained or fine-tuned models with the datasets available to me. In my tests, performance was not reliable enough, especially when a person or PPE item appeared far from the camera. Distant gloves, masks and hairnets occupy very few pixels, so their visual detail is limited; a model cannot recover detail that is absent from the frame. The results also depend on having enough correctly labelled examples at similar distances, angles, lighting and camera resolutions.
+
+I therefore tried existing model weights available online as a way to compare a stronger starting point and avoid relying only on one training run. A pretrained model is not automatically suitable for this application: its classes, training data, license and performance still need to be checked. An online lookup confirmed that yolov8n.pt is an official Ultralytics YOLOv8 nano detection weight. I could not verify a public source for the exact filenames khawla_v6.pt or khawla_mask_vest.pt, so their publisher, dataset and training history remain unverified. The weight files themselves and code do not preserve enough source information to establish those details. Confirm them from the original download pages before presenting them as facts.
+
+Current model configuration found in the code
+
+The default YOLO configuration in inference-service/config.py points to:
+
+- khawla_v6.pt as the primary PPE model.
+- khawla_mask_vest.pt as an optional additional mask model.
+- yolov8n.pt as an optional person detector, using class 0.
+
+The YOLO detector loads each file if it exists. Therefore, these three files are the active/default model files in this checkout; this does not prove that all three load successfully on every machine. Other weights have been moved to inference-service/models/unused/ because the current default code does not reference them. The file named best.pt is not selected by the current configuration. Its name is generic, so it should not be described as the final chosen model without confirming its origin and evaluating it.
+
+The RT-DETR inference path now uses the separate Ultralytics RTDETR class and its own `rtdetr-l.pt` checkpoint; it no longer reuses the YOLO PPE model or simulates latency. The official checkpoint is pretrained on COCO general-object classes, not the project's PPE classes. It therefore demonstrates a genuine RT-DETR inference path, but it must be fine-tuned on a labelled PPE dataset before its PPE accuracy can be compared fairly with YOLO. Do not describe the COCO checkpoint as PPE-trained.
+
+Challenges and next steps
+
+The most important challenge was inconsistent detection at distance. My local training attempts did not generalize well enough to the camera views I wanted to use. I also had to compare datasets and model files whose classes and label conventions may differ. Combining separate PPE and person models introduces another integration challenge: overlapping boxes, class-name normalization, confidence thresholds and tracking need to work together without duplicate or misleading detections.
+
+Useful next steps are to fine-tune RT-DETR on the same PPE dataset as YOLO, then evaluate both on a held-out set of frames from the intended camera. Report per-class precision/recall and examples at multiple distances, verify class mappings, and collect/label more representative distant examples. Camera placement, resolution, focus, lighting and inference image size should also be checked. Before publishing any weights, check their source licenses and the dataset's redistribution terms.
+
+Official learning/reference documentation
+
+React Learn: https://react.dev/learn
+Vite Guide: https://vite.dev/guide/
+FastAPI Tutorial: https://fastapi.tiangolo.com/tutorial/
+Laravel Documentation: https://laravel.com/docs
+Ultralytics YOLOv8 model details (including yolov8n): https://docs.ultralytics.com/models/yolov8
+Ultralytics RT-DETR model and pretrained checkpoint details: https://docs.ultralytics.com/models/rtdetr
+Ultralytics Object Detection: https://docs.ultralytics.com/tasks/detect
+Ultralytics Prediction: https://docs.ultralytics.com/modes/predict
+
+Accuracy note
+
+This summary describes the checked-in code and the development experience you described. Please adjust any first-person sentence that does not match your actual experience, and confirm the provenance/licenses of the model weights before sending this document to your internship supervisor.
+
+

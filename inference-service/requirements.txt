@@ -1,0 +1,29 @@
+# Kitchen Hygiene Surveillance — Python Inference Service
+# =========================================================
+# Core framework
+fastapi>=0.115.5
+uvicorn[standard]>=0.32.1
+python-dotenv>=1.0.1
+pydantic>=2.9.2
+
+# HTTP client (for Laravel communication)
+httpx>=0.28.1
+
+# Computer Vision
+opencv-python>=4.10.0
+numpy>=1.26.4
+
+# Deep Learning
+torch>=2.3.0
+torchvision>=0.18.0
+
+# Ultralytics YOLO, RT-DETR, and BoT-SORT
+ultralytics>=8.3.40
+
+# Testing
+pytest>=8.3.3
+pytest-asyncio>=0.24.0
+httpx>=0.28.1
+
+# Browser capture (Ivideon embed / web player streams)
+playwright>=1.40.0

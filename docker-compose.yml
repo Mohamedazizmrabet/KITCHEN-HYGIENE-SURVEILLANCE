@@ -1,0 +1,88 @@
+version: "3.9"
+
+# ============================================================
+# KitchenWatch — Docker Compose (optional convenience)
+# ============================================================
+# Usage:
+#   docker-compose up --build
+#
+# Services:
+#   inference  → http://localhost:8001  (Python FastAPI)
+#   laravel    → http://localhost:8000  (PHP Laravel)
+#   frontend   → http://localhost:3000  (React Vite preview)
+#
+# NOTE: The inference service requires GPU access.
+# For NVIDIA GPU support add:
+#   deploy:
+#     resources:
+#       reservations:
+#         devices:
+#           - capabilities: [gpu]
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # Python Inference Service
+  # ----------------------------------------------------------
+  inference:
+    build:
+      context: ./inference-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      # Mount model weights directory — place .pt/.onnx files here
+      - ./inference-service/models:/app/models:ro
+      # Persist benchmark CSV logs
+      - ./inference-service/logs:/app/logs
+    environment:
+      - DEVICE=cpu          # Change to cuda for GPU (requires nvidia-docker)
+      - DEFAULT_MODEL=YOLO
+      - CONFIDENCE_THRESHOLD=0.5
+      - LARAVEL_BASE_URL=http://laravel:8000
+      - HOST=0.0.0.0
+      - PORT=8001
+    # Uncomment for webcam access on Linux hosts:
+    # devices:
+    #   - /dev/video0:/dev/video0
+    depends_on:
+      - laravel
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Laravel Backend
+  # ----------------------------------------------------------
+  laravel:
+    build:
+      context: ./laravel-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./laravel-backend/database:/app/database
+      - ./laravel-backend/storage:/app/storage
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/app/database/database.sqlite
+      - SESSION_DRIVER=file
+      - CACHE_STORE=file
+      - QUEUE_CONNECTION=sync
+      - INFERENCE_SERVICE_URL=http://inference:8001
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # React Frontend (production preview build)
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - laravel
+      - inference
+    restart: unless-stopped
