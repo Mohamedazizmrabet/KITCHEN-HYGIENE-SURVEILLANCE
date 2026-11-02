@@ -56,13 +56,13 @@ trainF/
 
 ```bash
 cd inference-service
-python -m venv venv
+python -m venv venv311   # Python 3.11
 
 # Windows
-venv\Scripts\activate
+venv311\Scripts\activate
 
 # Linux / macOS
-source venv/bin/activate
+source venv311/bin/activate
 ```
 
 ### 1.2 Install dependencies
@@ -212,7 +212,7 @@ Open **three terminal windows**:
 ```bash
 # Terminal 1 — Python Inference Service
 cd inference-service
-venv\Scripts\activate
+venv311\Scripts\activate
 python app.py
 
 # Terminal 2 — Laravel Backend
