@@ -3,22 +3,18 @@
 Real-time PPE compliance monitoring prototype with independent YOLO and RT-DETR inference paths.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     React Frontend                        │
-│         Dashboard | Live Monitor | Violations | Settings  │
-└──────────────────┬───────────────────────────────────────┘
-                   │  HTTP/JSON (Axios)
-                   ▼
-┌──────────────────────────────────────────────────────────┐
-│                   Laravel Backend :8000                   │
-│         Sessions · Violations · Settings · SQLite        │
-└──────────────────┬───────────────────────────────────────┘
-                   │  Guzzle HTTP
-                   ▼
-┌──────────────────────────────────────────────────────────┐
-│          Python Inference Service :8001                   │
-│  YOLO / RT-DETR   → BoT-SORT → MJPEG Stream             │
-└──────────────────────────────────────────────────────────┘
+                ┌────────────────────────────────────────────┐
+                │           React Frontend :3000             │
+                │ Dashboard | Live Monitor | Violations |    │
+                │ Settings                                   │
+                └──────┬──────────────────────────┬──────────┘
+     sessions, settings,│ (Axios)                  │ start/stop sessions,
+     violation history  ▼                          ▼ MJPEG stream, metrics
+┌────────────────────────────┐  violations  ┌────────────────────────────┐
+│   Laravel Backend :8000    │◄─────────────│ Python Inference :8001     │
+│ Sessions · Violations ·    │              │ YOLO / RT-DETR → BoT-SORT  │
+│ Settings · SQLite          │              │ → MJPEG stream             │
+└────────────────────────────┘              └────────────────────────────┘
 ```
 
 ---
@@ -26,10 +22,12 @@ Real-time PPE compliance monitoring prototype with independent YOLO and RT-DETR 
 ## Project Structure
 
 ```
-trainF/
+KITCHEN-HYGIENE-SURVEILLANCE/
 ├── inference-service/       Python FastAPI — detection, tracking, streaming
 ├── laravel-backend/         PHP Laravel — sessions, violations, settings
-└── frontend/                React Vite — dashboard UI
+├── frontend/                React Vite — dashboard UI
+├── imagesToTest/            sample images (local only, not in Git)
+└── PROJECT_NOTES.txt        project summary, model choices and limitations
 ```
 
 ---
@@ -40,7 +38,7 @@ trainF/
 
 | Tool | Version |
 |---|---|
-| Python | ≥ 3.10 |
+| Python | 3.11 (≥ 3.10) |
 | pip | latest |
 | PHP | ≥ 8.2 |
 | Composer | ≥ 2 |
@@ -74,8 +72,9 @@ pip install -r requirements.txt
 > For CUDA GPU acceleration, install PyTorch with CUDA first:
 > ```bash
 > pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-> pip install onnxruntime-gpu   # instead of onnxruntime
 > ```
+>
+> `requirements.txt` includes `transformers`, which the RT-DETR model needs.
 
 ### 1.3 Configure environment
 
@@ -108,23 +107,26 @@ To use the COCO-pretrained Ultralytics checkpoint instead, run
 `python inference-service/download_rtdetr_model.py` and set
 `RTDETR_MODEL_PATH=models/rtdetr-l.pt`. It is not PPE-trained.
 
-### 1.5 Configure class mapping
+### 1.5 Configure class names
 
-Edit `inference-service/config.py` — `CLASS_MAPPING` dict:
+Each model uses its own class names. `CLASS_NORMALISE` in
+`inference-service/config.py` maps them to the names the app uses:
 
 ```python
-CLASS_MAPPING = {
-    0: "gloves",
-    1: "hairnet",
-    2: "mask",
-    3: "no_gloves",
-    4: "no_hairnet",
-    5: "no_mask",
-    6: "incorrect_mask",
+CLASS_NORMALISE = {
+    "Glove":     "gloves",      # khawla_v6
+    "Bare Hand": "no_gloves",
+    "Hairnet":   "hairnet",
+    "Bare Hair": "no_hairnet",
+    "Mask":      "mask",        # khawla_mask_vest and rtdetr-cppe5
+    "NO-Mask":   "no_mask",
+    "Person":    "person",
+    "Gloves":    "gloves",      # rtdetr-cppe5
+    ...
 }
 ```
 
-Map integer indices to match your model's training class order.
+If you add a model with different class names, add its names here.
 
 ### 1.6 Start the service
 
@@ -235,10 +237,15 @@ Then open: **http://localhost:3000**
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | Service liveness + model status |
-| `POST` | `/session/start` | Start a new inference session |
+| `POST` | `/session/start` | Start a session (`source`, `model`: `YOLO` or `RT`, optional `laravel_session_id`) |
 | `POST` | `/session/stop` | Stop a running session |
 | `GET` | `/stream/{id}` | MJPEG stream for a session |
-| `POST` | `/model/select` | Switch active model |
+| `GET` | `/session/{id}/tracks` | Tracked persons and their PPE status |
+| `GET` | `/session/{id}/snapshots` | List violation snapshots |
+| `GET` | `/session/{id}/snapshots/full` | Snapshots with images |
+| `GET` | `/snapshot/{snapshot_id}/download` | Download one snapshot as JPEG |
+| `GET` / `POST` | `/config/ppe` | Read or change which PPE items are checked |
+| `POST` | `/model/select` | Switch active model (`YOLO`, `RT`, `BOTH`) |
 | `GET` | `/metrics` | Live FPS / latency / detections |
 | `POST` | `/benchmark/start` | Start dual-model comparison |
 | `POST` | `/benchmark/stop` | Stop benchmark |
@@ -248,12 +255,18 @@ Then open: **http://localhost:3000**
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/sessions` | List all sessions |
-| `POST` | `/api/sessions` | Create a session |
+| `GET` | `/api/health` | Service liveness |
+| `GET` | `/api/sessions` | List all sessions with their violations |
+| `POST` | `/api/sessions` | Create a session record |
+| `GET` | `/api/sessions/{id}` | One session with its violations |
+| `DELETE` | `/api/sessions/{id}` | Mark a session as stopped |
 | `GET` | `/api/violations` | List violations (filter: `?type=`, `?session_id=`) |
-| `POST` | `/api/violations` | Record a violation |
+| `POST` | `/api/violations` | Record a violation (sent by the inference service) |
+| `GET` | `/api/violations/{id}` | One violation |
 | `GET` | `/api/settings` | Get current settings |
 | `PUT` | `/api/settings` | Update settings |
+| `GET` | `/api/inference/health`, `/api/inference/metrics` | Proxies to the inference service |
+| `POST` | `/api/inference/model/select` | Proxy to the inference service |
 
 ---
 
@@ -274,9 +287,9 @@ No other code changes required.
 
 To compare YOLO vs RT-DETR side-by-side:
 
-1. Go to **Model Settings** → select **Compare Both**
-2. Go to **Live Monitoring** → Start Session
-3. The stream shows both models' bounding boxes and a dual HUD
+1. Go to **Live Monitoring** → select **Compare Both** (or choose it in **Model Settings**, which pre-selects it)
+2. Click **Start Session**
+3. The stream shows both models' bounding boxes and a YOLOv8 / RT-DETR metrics panel
 4. Results are saved to `inference-service/logs/benchmark.csv`
 
 CSV columns: `timestamp, model, frame, fps, latency_ms, detections`
@@ -313,22 +326,20 @@ curl -X POST http://localhost:8001/session/start \
 
 ## Detection Classes
 
-Configure in `inference-service/config.py`:
+Configured in `inference-service/config.py`:
 
 ```python
-CLASS_MAPPING = {
-    0: "gloves",
-    1: "hairnet",
-    2: "mask",
-    3: "no_gloves",
-    4: "no_hairnet",
-    5: "no_mask",
-    6: "incorrect_mask",
-}
-
-VIOLATION_CLASSES = {"no_gloves", "no_hairnet", "no_mask", "incorrect_mask"}
 COMPLIANCE_CLASSES = {"gloves", "hairnet", "mask"}
+VIOLATION_CLASSES = {"no_gloves", "no_hairnet", "no_mask"}
 ```
+
+| Model | Detects |
+|---|---|
+| YOLO (khawla_v6 + khawla_mask_vest + yolov8n) | gloves, hairnet, mask, their violations, person |
+| RT-DETR (rtdetr-cppe5) + yolov8n for persons | gloves, mask, person — **no hairnet** |
+
+The PPE items to check can also be switched on and off live from the
+**Live Monitoring** page.
 
 ---
 
@@ -346,6 +357,12 @@ Person ID: 8   Status: VIOLATION
 
 Compliance is determined by checking which `COMPLIANCE_CLASSES`
 appear near each tracked person's bounding box in the current frame.
+A missing item counts as a violation, except items the active model
+cannot detect: in RT-DETR mode hairnet is shown as "—" (not checked).
+
+When a person gets a new violation, the inference service saves a
+snapshot and records the violation in Laravel against the current
+session, so it appears on the **Violations** page.
 
 ---
 
@@ -353,12 +370,51 @@ appear near each tracked person's bounding box in the current frame.
 
 | Layer | Technology |
 |---|---|
-| Detection | Ultralytics YOLO and RT-DETR |
+| Detection | Ultralytics YOLOv8; RT-DETR via Hugging Face Transformers |
 | Tracking | BoT-SORT via Ultralytics |
 | Streaming | OpenCV → MJPEG → FastAPI StreamingResponse |
 | API | FastAPI + Uvicorn |
 | Backend | Laravel 13 + SQLite |
 | Frontend | React 19 + Vite + Axios |
+
+---
+
+## Running the Tests
+
+```bash
+cd inference-service
+venv311\Scripts\activate
+python -m pytest tests
+```
+
+The tests check the detector interface and configuration without needing
+the model weights.
+
+---
+
+## Limitations
+
+- This is a prototype; it does not replace human supervision.
+- Detection is unreliable when a person is far from the camera (PPE items
+  are only a few pixels wide).
+- The RT-DETR model was trained on medical PPE images (CPPE-5), not kitchen
+  footage, and cannot detect hairnets. A fair YOLO vs RT-DETR comparison
+  needs both models trained on the same kitchen dataset.
+- The final end-to-end check used a video file; test a webcam or RTSP
+  camera before relying on it.
+
+See `PROJECT_NOTES.txt` for more detail.
+
+---
+
+## Credits
+
+- [Ultralytics YOLOv8](https://docs.ultralytics.com/models/yolov8) — `yolov8n.pt` person detector and the YOLO framework
+- [qubvel-hf/rtdetr-r50-cppe5-finetune](https://huggingface.co/qubvel-hf/rtdetr-r50-cppe5-finetune) — pretrained RT-DETR model (gloves, masks)
+- `khawla_v6.pt` and `khawla_mask_vest.pt` — third-party YOLOv8 PPE weights; see `PROJECT_NOTES.txt` for what is known about their source
+
+Model weights are not included in this repository. Check each model's
+license before redistributing it.
 
 ---
 
