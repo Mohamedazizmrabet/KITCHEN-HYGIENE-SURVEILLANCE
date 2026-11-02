@@ -72,9 +72,13 @@ class PPETracker:
         self,
         device: str = "cpu",
         history_len: int = 30,
+        supported_ppe: set | None = None,
     ) -> None:
         self.device = device
         self.history_len = history_len
+        # PPE classes the detector can actually see; None means all of them.
+        # Unsupported classes are never reported as missing.
+        self.supported_ppe = supported_ppe
         self._tracker = None
         self._track_states: Dict[int, TrackState] = {}
         self._frame_count: int = 0
@@ -261,6 +265,8 @@ class PPETracker:
         # Read config dynamically so API toggles take effect immediately
         compliance_classes = config.COMPLIANCE_CLASSES
         violation_classes = config.VIOLATION_CLASSES
+        if self.supported_ppe is not None:
+            compliance_classes = compliance_classes & self.supported_ppe
 
         px1, py1, px2, py2 = person_bbox
         pw = px2 - px1

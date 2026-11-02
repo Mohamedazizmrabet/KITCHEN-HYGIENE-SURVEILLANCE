@@ -12,8 +12,8 @@ const ALL_PPE_CLASSES = [
 ]
 
 const MODEL_OPTIONS = [
-  { value: 'YOLO',   label: 'YOLO11',           desc: 'Fast, high-throughput detection' },
-  { value: 'RTDETR', label: 'RT-DETR-L',         desc: 'COCO pretrained; fine-tune for PPE classes' },
+  { value: 'YOLO',   label: 'YOLOv8',           desc: 'Gloves, hairnets, masks + violations' },
+  { value: 'RTDETR', label: 'RT-DETR',           desc: 'Pretrained (CPPE-5): gloves + masks only' },
   { value: 'BOTH',   label: 'Compare Both',      desc: 'Side-by-side benchmark mode'       },
 ]
 
@@ -131,7 +131,7 @@ export default function ModelSettings() {
               <strong style={{ color: 'var(--accent)' }}>Model weights</strong><br />
               Place weight files in <code style={{ color: 'var(--warning)', background: 'rgba(245,158,11,0.1)', padding: '1px 5px', borderRadius: 3 }}>inference-service/models/</code>:<br />
               <code style={{ display: 'block', marginTop: 6 }}>khawla_v6.pt · khawla_mask_vest.pt · yolov8n.pt</code>
-              <code style={{ display: 'block' }}>rtdetr-l.pt</code>
+              <code style={{ display: 'block' }}>rtdetr-cppe5/ (download_rtdetr_ppe_model.py)</code>
             </div>
           </div>
 

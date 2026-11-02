@@ -1,6 +1,6 @@
 # KitchenWatch — Intelligent Kitchen Hygiene Surveillance System
 
-Real-time PPE compliance monitoring prototype with independent YOLO and RT-DETR-L inference paths.
+Real-time PPE compliance monitoring prototype with independent YOLO and RT-DETR inference paths.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -17,7 +17,7 @@ Real-time PPE compliance monitoring prototype with independent YOLO and RT-DETR-
                    ▼
 ┌──────────────────────────────────────────────────────────┐
 │          Python Inference Service :8001                   │
-│  YOLO / RT-DETR-L → BoT-SORT → MJPEG Stream             │
+│  YOLO / RT-DETR   → BoT-SORT → MJPEG Stream             │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -94,13 +94,19 @@ inference-service/models/
 ├── khawla_v6.pt             ← default PPE model for YOLO
 ├── khawla_mask_vest.pt      ← optional YOLO mask model
 ├── yolov8n.pt               ← optional YOLO person model
-└── rtdetr-l.pt              ← separate Ultralytics RT-DETR-L weights
+└── rtdetr-cppe5/            ← default RT-DETR model (Hugging Face, gloves + masks)
 ```
 
-To download the official COCO-pretrained RT-DETR-L checkpoint, run
-`python inference-service/download_rtdetr_model.py` from the repository root.
-It is a genuine RT-DETR model, but it is not PPE-trained; fine-tune it on a
-PPE dataset before comparing PPE detection quality against the YOLO models.
+The default RT-DETR model is the pretrained
+[qubvel-hf/rtdetr-r50-cppe5-finetune](https://huggingface.co/qubvel-hf/rtdetr-r50-cppe5-finetune),
+fine-tuned on the CPPE-5 dataset (Coverall, Face_Shield, Gloves, Goggles, Mask).
+Download it with `python inference-service/download_rtdetr_ppe_model.py` from the
+repository root. It has no hairnet or violation classes, so it detects worn gloves
+and masks only.
+
+To use the COCO-pretrained Ultralytics checkpoint instead, run
+`python inference-service/download_rtdetr_model.py` and set
+`RTDETR_MODEL_PATH=models/rtdetr-l.pt`. It is not PPE-trained.
 
 ### 1.5 Configure class mapping
 
@@ -256,8 +262,8 @@ Then open: **http://localhost:3000**
 When your model weights are ready:
 
 1. Place the YOLO PPE weights at `inference-service/models/khawla_v6.pt`.
-2. Place the RT-DETR checkpoint at `inference-service/models/rtdetr-l.pt` or set `RTDETR_MODEL_PATH` in `inference-service/.env`.
-3. Train/fine-tune RT-DETR on the PPE classes before using it to assess PPE compliance.
+2. Download the RT-DETR model with `python inference-service/download_rtdetr_ppe_model.py`, or set `RTDETR_MODEL_PATH` in `inference-service/.env` to another Hugging Face model folder or Ultralytics `.pt` file.
+3. Fine-tune RT-DETR on kitchen PPE classes (including hairnets and violations) for a fair comparison with YOLO.
 4. Restart the inference service with `cd inference-service` followed by `python app.py`.
 
 No other code changes required.
@@ -266,7 +272,7 @@ No other code changes required.
 
 ## Benchmark Mode
 
-To compare YOLO vs RT-DETR-L side-by-side:
+To compare YOLO vs RT-DETR side-by-side:
 
 1. Go to **Model Settings** → select **Compare Both**
 2. Go to **Live Monitoring** → Start Session

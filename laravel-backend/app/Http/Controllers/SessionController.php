@@ -5,24 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\StreamSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 /**
  * SessionController
  *
- * Manages inference sessions: creates records in the database and
- * optionally proxies start/stop commands to the FastAPI inference service.
+ * Manages the database records for inference sessions. The dashboard
+ * starts and stops the streams on the FastAPI inference service directly.
  */
 class SessionController extends Controller
 {
-    private string $inferenceUrl;
-
-    public function __construct()
-    {
-        $this->inferenceUrl = env('INFERENCE_SERVICE_URL', 'http://localhost:8001');
-    }
-
     /**
      * GET /api/sessions
      * Return all sessions ordered by most recent.
@@ -44,7 +36,7 @@ class SessionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'source'     => 'nullable|string',
-            'model_used' => 'nullable|string|in:YOLO,RTDETR,BOTH',
+            'model_used' => 'nullable|string|in:YOLO,RT,RTDETR,BOTH',
             'status'     => 'nullable|string',
         ]);
 
@@ -52,22 +44,19 @@ class SessionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // "RT" is the dashboard's short name for RT-DETR
+        $model = $request->input('model_used', 'YOLO');
+        if ($model === 'RT') {
+            $model = 'RTDETR';
+        }
+
+        // Only the database record is created here. The dashboard starts the
+        // inference stream itself, so forwarding here would start a duplicate.
         $session = StreamSession::create([
             'source'     => $request->input('source', '0'),
-            'model_used' => $request->input('model_used', 'YOLO'),
+            'model_used' => $model,
             'status'     => $request->input('status', 'active'),
         ]);
-
-        // Forward to inference service (non-blocking — best effort)
-        try {
-            Http::timeout(5)->post("{$this->inferenceUrl}/session/start", [
-                'source' => $session->source,
-                'model'  => $session->model_used,
-            ]);
-        } catch (\Exception $e) {
-            // Log but don't fail — inference service may not be running
-            \Log::warning("Could not notify inference service: {$e->getMessage()}");
-        }
 
         return response()->json($session, 201);
     }

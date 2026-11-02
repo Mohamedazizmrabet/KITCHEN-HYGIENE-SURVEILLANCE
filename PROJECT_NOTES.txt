@@ -23,7 +23,7 @@ Why I tried pretrained/downloaded models
 
 I initially trained or fine-tuned models with the datasets available to me. In my tests, performance was not reliable enough, especially when a person or PPE item appeared far from the camera. Distant gloves, masks and hairnets occupy very few pixels, so their visual detail is limited; a model cannot recover detail that is absent from the frame. The results also depend on having enough correctly labelled examples at similar distances, angles, lighting and camera resolutions.
 
-I therefore tried existing model weights available online as a way to compare a stronger starting point and avoid relying only on one training run. A pretrained model is not automatically suitable for this application: its classes, training data, license and performance still need to be checked. An online lookup confirmed that yolov8n.pt is an official Ultralytics YOLOv8 nano detection weight. I could not verify a public source for the exact filenames khawla_v6.pt or khawla_mask_vest.pt, so their publisher, dataset and training history remain unverified. The weight files themselves and code do not preserve enough source information to establish those details. Confirm them from the original download pages before presenting them as facts.
+I therefore tried existing model weights available online as a way to compare a stronger starting point and avoid relying only on one training run. A pretrained model is not automatically suitable for this application: its classes, training data, license and performance still need to be checked. An online lookup confirmed that yolov8n.pt is an official Ultralytics YOLOv8 nano detection weight. I could not verify a public source for the exact filenames khawla_v6.pt or khawla_mask_vest.pt, so their publisher, dataset and training history remain unverified. The weight files and code do not keep enough source information to establish those details, so their origin still needs to be confirmed.
 
 Current model configuration found in the code
 
@@ -35,7 +35,15 @@ The default YOLO configuration in inference-service/config.py points to:
 
 The YOLO detector loads each file if it exists. Therefore, these three files are the active/default model files in this checkout; this does not prove that all three load successfully on every machine. Other weights have been moved to inference-service/models/unused/ because the current default code does not reference them. The file named best.pt is not selected by the current configuration. Its name is generic, so it should not be described as the final chosen model without confirming its origin and evaluating it.
 
-The RT-DETR inference path now uses the separate Ultralytics RTDETR class and its own `rtdetr-l.pt` checkpoint; it no longer reuses the YOLO PPE model or simulates latency. The official checkpoint is pretrained on COCO general-object classes, not the project's PPE classes. It therefore demonstrates a genuine RT-DETR inference path, but it must be fine-tuned on a labelled PPE dataset before its PPE accuracy can be compared fairly with YOLO. Do not describe the COCO checkpoint as PPE-trained.
+YOLO and RT-DETR
+
+I added RT-DETR as a second model option next to YOLO so the two architectures can be compared in the same application. The dashboard lets the user switch between YOLO, RT-DETR or both.
+
+I did not train the RT-DETR model myself. I searched for a pretrained RT-DETR model for kitchen PPE and found none covering gloves, masks and hairnets together. The closest one available is qubvel-hf/rtdetr-r50-cppe5-finetune on Hugging Face: an RT-DETR R50 model fine-tuned on the CPPE-5 medical PPE dataset (Coverall, Face_Shield, Gloves, Goggles, Mask). Its model card reports about 0.58 mAP for gloves and 0.54 mAP for masks on CPPE-5. I integrated it through the Hugging Face Transformers library, since it is not in the Ultralytics format; the detector still accepts an Ultralytics RT-DETR .pt file as well.
+
+Limits of this model for the project: it only detects PPE that is worn (gloves, mask). It has no hairnet class, no person class and no violation classes such as bare hand or no mask. To make it usable for tracking, the RT-DETR mode reuses the same yolov8n person detector as the YOLO mode, and a person is flagged when a glove or mask is not found near them. Hairnet is not checked in RT-DETR mode, so the app does not report false hairnet violations. It was also trained on medical-style images, not kitchen footage. In a quick check on the project's sample images it detected the glove and mask examples and returned nothing for the hairnet images, as expected. On my GPU it ran at about 55–95 ms per frame.
+
+I focused most of my effort on YOLO. It is lighter, runs fast enough for live video on ordinary hardware, and the Ultralytics training workflow made it easier for me to train and iterate on PPE datasets. A fair YOLO vs RT-DETR comparison would need both models trained on the same kitchen PPE dataset, which is a next step.
 
 Challenges and next steps
 
@@ -53,9 +61,7 @@ Ultralytics YOLOv8 model details (including yolov8n): https://docs.ultralytics.c
 Ultralytics RT-DETR model and pretrained checkpoint details: https://docs.ultralytics.com/models/rtdetr
 Ultralytics Object Detection: https://docs.ultralytics.com/tasks/detect
 Ultralytics Prediction: https://docs.ultralytics.com/modes/predict
-
-Accuracy note
-
-This summary describes the checked-in code and the development experience you described. Please adjust any first-person sentence that does not match your actual experience, and confirm the provenance/licenses of the model weights before sending this document to your internship supervisor.
+Pretrained RT-DETR PPE model used: https://huggingface.co/qubvel-hf/rtdetr-r50-cppe5-finetune
+Hugging Face Transformers RT-DETR: https://huggingface.co/docs/transformers/model_doc/rt_detr
 
 

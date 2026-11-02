@@ -25,7 +25,8 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 YOLO_MODEL_PATH = MODELS_DIR / os.getenv("YOLO_MODEL_PATH", "khawla_v6.pt").split("/")[-1]
 PERSON_MODEL_PATH = MODELS_DIR / os.getenv("PERSON_MODEL_PATH", "yolov8n.pt").split("/")[-1]
 MASK_MODEL_PATH = MODELS_DIR / os.getenv("MASK_MODEL_PATH", "khawla_mask_vest.pt").split("/")[-1]
-RTDETR_MODEL_PATH = MODELS_DIR / os.getenv("RTDETR_MODEL_PATH", "rtdetr-l.pt").replace("\\", "/").split("/")[-1]
+# Either a Hugging Face model folder (rtdetr-cppe5) or an Ultralytics .pt file (rtdetr-l.pt)
+RTDETR_MODEL_PATH = MODELS_DIR / os.getenv("RTDETR_MODEL_PATH", "rtdetr-cppe5").replace("\\", "/").rstrip("/").split("/")[-1]
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +78,8 @@ CLASS_NORMALISE: dict[str, str] = {
     "Mask":          "mask",
     "NO-Mask":       "no_mask",
     "Person":        "person",
+    # rtdetr-cppe5 classes (Mask is shared with khawla_mask_vest)
+    "Gloves":        "gloves",
     # keremberke fallbacks (kept for backwards compat)
     "gloves":        "gloves",
     "mask":          "mask",

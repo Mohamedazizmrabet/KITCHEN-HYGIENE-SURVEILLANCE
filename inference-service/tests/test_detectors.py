@@ -97,19 +97,13 @@ class TestRTDETRDetector:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         assert detector.predict(frame) == []
 
-    def test_preprocess_output_shape(self):
-        """_preprocess() should return [1, 3, H, W] float32."""
+    def test_backend_follows_model_path(self, tmp_path):
+        """A model folder uses Transformers; a .pt file uses Ultralytics."""
         from detectors.rtdetr_detector import RTDETRDetector
-        detector = RTDETRDetector(
-            model_path=Path("models/rtdetrv2_model.onnx"),
-            device="cpu",
-            confidence_threshold=0.5,
-        )
-        frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-        tensor = detector._preprocess(frame)
-        assert tensor.shape == (1, 3, 640, 640)
-        assert tensor.dtype == np.float32
-        assert tensor.min() >= 0.0 and tensor.max() <= 1.0
+        hf_detector = RTDETRDetector(model_path=tmp_path, device="cpu", confidence_threshold=0.5)
+        pt_detector = RTDETRDetector(model_path=tmp_path / "rtdetr-l.pt", device="cpu", confidence_threshold=0.5)
+        assert hf_detector._uses_transformers
+        assert not pt_detector._uses_transformers
 
 
 # ---------------------------------------------------------------------------

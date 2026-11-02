@@ -20,6 +20,9 @@ torchvision>=0.18.0
 # Ultralytics YOLO, RT-DETR, and BoT-SORT
 ultralytics>=8.3.40
 
+# Hugging Face RT-DETR (pretrained gloves/mask model)
+transformers>=4.47.0
+
 # Testing
 pytest>=8.3.3
 pytest-asyncio>=0.24.0

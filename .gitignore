@@ -19,6 +19,8 @@ inference-service/models/**/*.pth
 inference-service/models/**/*.onnx
 inference-service/models/**/*.engine
 inference-service/models/**/*.torchscript
+inference-service/models/**/*.safetensors
+inference-service/models/rtdetr-cppe5/
 inference-service/runs/
 inference-service/datasets/
 

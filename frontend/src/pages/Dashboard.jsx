@@ -78,8 +78,8 @@ export default function Dashboard() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { label: 'YOLO11 weights', ok: health?.yolo_loaded, note: health?.yolo_loaded ? 'Loaded' : 'Missing — place in models/' },
-              { label: 'RT-DETR-L weights', ok: health?.rtdetr_loaded, note: health?.rtdetr_loaded ? 'Loaded' : 'Missing — place rtdetr-l.pt in models/' },
+              { label: 'YOLOv8 weights', ok: health?.yolo_loaded, note: health?.yolo_loaded ? 'Loaded' : 'Missing — place in models/' },
+              { label: 'RT-DETR weights', ok: health?.rtdetr_loaded, note: health?.rtdetr_loaded ? 'Loaded' : 'Missing — run download_rtdetr_ppe_model.py' },
               { label: 'Device', ok: true, note: health?.device ?? '…' },
             ].map(({ label, ok, note }) => (
               <div key={label} style={{
@@ -133,7 +133,7 @@ export default function Dashboard() {
                   <tr key={v.id}>
                     <td>#{v.person_id}</td>
                     <td style={{ color: 'var(--danger)' }}>{v.violation_type}</td>
-                    <td className="font-mono">{(v.confidence * 100).toFixed(0)}%</td>
+                    <td className="font-mono">{v.confidence ? `${(v.confidence * 100).toFixed(0)}%` : '—'}</td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                       {new Date(v.created_at || v.timestamp).toLocaleTimeString()}
                     </td>

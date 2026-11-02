@@ -90,6 +90,7 @@ def _get_active_detector(model: str | None = None):
 class SessionStartRequest(BaseModel):
     source: str = Field(default="0", description="Video source: '0' for webcam, RTSP URL, embed URL, or file path")
     model: str = Field(default="", description="Override model for this session. Leave empty to use active model.")
+    laravel_session_id: int | None = Field(default=None, description="Laravel session record that violations are saved against")
 
 class SessionStartResponse(BaseModel):
     session_id: str
@@ -175,6 +176,9 @@ async def session_start(req: SessionStartRequest) -> SessionStartResponse:
     session_id = str(uuid.uuid4())
 
     model_override = req.model.upper() if req.model else _active_model
+    # Accept "RT" as alias for RTDETR (the dashboard's RT button sends it)
+    if model_override == "RT":
+        model_override = ModelMode.RTDETR
     if model_override == ModelMode.BOTH:
         raise HTTPException(
             status_code=400,
@@ -196,6 +200,7 @@ async def session_start(req: SessionStartRequest) -> SessionStartResponse:
         source=source,
         detector=detector,
         model_name=model_name,
+        laravel_session_id=req.laravel_session_id,
     )
 
     stream_url = f"http://localhost:{config.PORT}/stream/{session_id}"

@@ -5,7 +5,10 @@ import MetricCard from '../components/MetricCard'
 import ViolationBadge from '../components/ViolationBadge'
 import SnapshotCard from '../components/SnapshotCard'
 
-const MODEL_OPTIONS = ['YOLO', 'RT']
+const MODEL_OPTIONS = ['YOLO', 'RT', 'BOTH']
+
+// The inference service reports RT-DETR as 'RTDETR'; the button is 'RT'
+const toModelOption = (model) => (model === 'RTDETR' ? 'RT' : model)
 
 const INFERENCE_BASE = import.meta.env.VITE_INFERENCE_URL || 'http://localhost:8001'
 
@@ -18,6 +21,7 @@ const ALL_PPE_ITEMS = [
 
 export default function LiveMonitoring() {
   const [sessionId, setSessionId] = useState(null)
+  const [dbSessionId, setDbSessionId] = useState(null) // Laravel stream_sessions.id
   const [isRunning, setIsRunning] = useState(false)
   const [isBenchmark, setIsBenchmark] = useState(false)
   const [metrics, setMetrics] = useState(null)
@@ -46,12 +50,13 @@ export default function LiveMonitoring() {
 
     inferenceApi.get('/health').then((res) => {
       const activeSessions = res.data.active_sessions
+      // Start from the model chosen in Model Settings
+      if (MODEL_OPTIONS.includes(toModelOption(res.data.active_model))) {
+        setSelectedModel(toModelOption(res.data.active_model))
+      }
       if (activeSessions && activeSessions.length > 0) {
         setSessionId(activeSessions[0])
         setIsRunning(true)
-        if (res.data.active_model) {
-          setSelectedModel(res.data.active_model)
-        }
       }
     }).catch(() => {})
   }, [])
@@ -130,18 +135,27 @@ export default function LiveMonitoring() {
   const startSession = async () => {
     setError('')
     try {
+      // Record the session first so violations can be saved against it
+      const dbSession = await laravelApi
+        .post('/sessions', { source, model_used: selectedModel, status: 'active' })
+        .catch(() => null)
+      const laravelSessionId = dbSession?.data?.id ?? null
+      setDbSessionId(laravelSessionId)
+
       if (selectedModel === 'BOTH') {
         await inferenceApi.post('/benchmark/start', { source })
         setIsBenchmark(true)
         setIsRunning(true)
-        await laravelApi.post('/sessions', { source, model_used: 'BOTH', status: 'active' }).catch(() => {})
       } else {
         await inferenceApi.post('/model/select', { model: selectedModel })
-        const res = await inferenceApi.post('/session/start', { source, model: selectedModel })
+        const res = await inferenceApi.post('/session/start', {
+          source,
+          model: selectedModel,
+          laravel_session_id: laravelSessionId,
+        })
         setSessionId(res.data.session_id)
         setIsBenchmark(false)
         setIsRunning(true)
-        await laravelApi.post('/sessions', { source, model_used: selectedModel, status: 'active' }).catch(() => {})
       }
     } catch (e) {
       setError(e.response?.data?.detail || e.message)
@@ -155,7 +169,11 @@ export default function LiveMonitoring() {
       } else if (sessionId) {
         await inferenceApi.post('/session/stop', { session_id: sessionId })
       }
+      if (dbSessionId) {
+        await laravelApi.delete(`/sessions/${dbSessionId}`) // marks it stopped
+      }
     } catch (_) {}
+    setDbSessionId(null)
     setIsRunning(false)
     setSessionId(null)
     setIsBenchmark(false)
@@ -354,7 +372,7 @@ export default function LiveMonitoring() {
           {isRunning && (
             <div className="grid-metrics" style={{ marginTop: 16 }}>
               <MetricCard
-                value={sessionMetrics?.fps ?? benchmarkMetrics?.YOLO?.fps ?? '—'}
+                value={sessionMetrics?.fps ?? benchmarkMetrics?.YOLOv8?.fps ?? '—'}
                 label="FPS"
                 unit=""
                 accent="var(--accent)"

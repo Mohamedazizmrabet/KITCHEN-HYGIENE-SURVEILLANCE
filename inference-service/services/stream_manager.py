@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 from typing import Dict, Generator, List, Optional
 
 import cv2
+import httpx
 import numpy as np
 
 import config
@@ -128,14 +129,20 @@ class StreamSession:
         source,
         detector: Optional[BaseDetector],
         model_name: str = "unknown",
+        laravel_session_id: Optional[int] = None,
     ) -> None:
         self.session_id = session_id
+        # Laravel stream_sessions.id that violations are recorded against
+        self.laravel_session_id = laravel_session_id
         self.source = source
         self.detector = detector
         self.model_name = model_name
 
         self.metrics = SessionMetrics(model_name=model_name)
-        self.tracker = PPETracker(device=config.DEVICE)
+        self.tracker = PPETracker(
+            device=config.DEVICE,
+            supported_ppe=getattr(detector, "supported_ppe", None),
+        )
 
         self._cap: Optional[cv2.VideoCapture] = None
         self._using_playwright = False
@@ -378,8 +385,11 @@ class StreamSession:
                 # Take snapshot if this is a brand new violation, or if their violations CHANGED
                 # (e.g. they were missing a mask, but now they are missing a mask AND gloves)
                 if tid not in self._violation_track_ids or self._violation_track_ids[tid] != current_violations:
+                    new_violations = current_violations - self._violation_track_ids.get(tid, frozenset())
                     self._violation_track_ids[tid] = current_violations
                     self._save_snapshot(frame, state)
+                    if new_violations:
+                        self._report_violations(state.track_id, sorted(new_violations))
             elif state.is_compliant and tid in self._violation_track_ids:
                 # Person became compliant again — clear them so we can capture next time
                 del self._violation_track_ids[tid]
@@ -407,6 +417,30 @@ class StreamSession:
             f"Snapshot saved for Person #{state.track_id} | "
             f"violations={state.missing_ppe}"
         )
+
+    def _report_violations(self, track_id: int, violations: List[str]) -> None:
+        """Record new violations in Laravel without blocking the stream loop."""
+        timestamp = datetime.now(timezone.utc).isoformat()
+        payloads = [
+            {
+                "session_id": self.laravel_session_id,
+                "person_id": track_id,
+                "violation_type": violation,
+                "timestamp": timestamp,
+            }
+            for violation in violations
+        ]
+
+        def post() -> None:
+            url = f"{config.LARAVEL_BASE_URL}/api/violations"
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    for payload in payloads:
+                        client.post(url, json=payload).raise_for_status()
+            except Exception as exc:
+                logger.warning(f"[StreamSession:{self.session_id}] Failed to record violation: {exc}")
+
+        threading.Thread(target=post, daemon=True).start()
 
     # ------------------------------------------------------------------
     # Annotation
@@ -556,6 +590,7 @@ class StreamManager:
         source,
         detector: Optional[BaseDetector],
         model_name: str = "unknown",
+        laravel_session_id: Optional[int] = None,
     ) -> StreamSession:
         """Create and start a new stream session."""
         session = StreamSession(
@@ -563,6 +598,7 @@ class StreamManager:
             source=source,
             detector=detector,
             model_name=model_name,
+            laravel_session_id=laravel_session_id,
         )
         session.start()
         with self._lock:

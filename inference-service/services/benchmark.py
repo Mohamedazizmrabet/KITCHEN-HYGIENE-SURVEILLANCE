@@ -103,8 +103,8 @@ class BenchmarkService:
         self._yolo = yolo_detector
         self._rtdetr = rtdetr_detector
 
-        self._yolo_bench = ModelBenchmark(model_name="YOLO11")
-        self._rtdetr_bench = ModelBenchmark(model_name="RT-DETR-L")
+        self._yolo_bench = ModelBenchmark(model_name="YOLOv8")
+        self._rtdetr_bench = ModelBenchmark(model_name="RT-DETR")
 
         self._running = False
         self._cap: Optional[cv2.VideoCapture] = None
@@ -160,8 +160,8 @@ class BenchmarkService:
     def get_metrics(self) -> dict:
         gpu_mem = self._get_gpu_memory_mb()
         return {
-            "YOLO11": {**self._yolo_bench.to_dict(), "gpu_memory_mb": gpu_mem},
-            "RT-DETR-L": {**self._rtdetr_bench.to_dict(), "gpu_memory_mb": gpu_mem},
+            "YOLOv8": {**self._yolo_bench.to_dict(), "gpu_memory_mb": gpu_mem},
+            "RT-DETR": {**self._rtdetr_bench.to_dict(), "gpu_memory_mb": gpu_mem},
         }
 
     def get_mjpeg_frames(self):
@@ -288,12 +288,12 @@ class BenchmarkService:
             return
         # Write one row per model per frame
         self._csv_writer.writerow([
-            timestamp, "YOLO11", frame_idx,
+            timestamp, "YOLOv8", frame_idx,
             round(yolo.fps, 2), round(yolo.avg_latency_ms, 2),
             int(yolo.detection_window[-1]) if yolo.detection_window else 0,
         ])
         self._csv_writer.writerow([
-            timestamp, "RT-DETR-L", frame_idx,
+            timestamp, "RT-DETR", frame_idx,
             round(rtdetr.fps, 2), round(rtdetr.avg_latency_ms, 2),
             int(rtdetr.detection_window[-1]) if rtdetr.detection_window else 0,
         ])
