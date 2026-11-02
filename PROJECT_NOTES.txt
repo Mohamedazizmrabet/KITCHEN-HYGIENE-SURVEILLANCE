@@ -11,7 +11,7 @@ The project is split into three services so each part has a clear responsibility
 - React with Vite provides the browser dashboard, live-monitoring screens, history and model settings. I chose React because its component approach made it practical to build reusable interface elements and update the screen as monitoring data changes. Vite provides the development server and frontend build workflow.
 - Laravel provides the application backend for settings, sessions and violation records. It gives the project a structured place to handle web/API requests and persistence.
 - Python with FastAPI runs the computer-vision service. Python has the computer-vision and deep-learning ecosystem needed for image/video processing, while FastAPI exposes the inference functions as HTTP endpoints for the other services.
-- OpenCV is used for video/image handling; Ultralytics YOLO is used for object detection; Axios connects the React interface to the APIs; Docker Compose describes the local services.
+- OpenCV is used for video/image handling; Ultralytics YOLO is used for object detection; Axios connects the React interface to the APIs.
 
 Learning and development
 
