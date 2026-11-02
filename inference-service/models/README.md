@@ -15,4 +15,3 @@ A folder path is loaded with Hugging Face Transformers; a `.pt` path is loaded w
 
 Model weights are intentionally excluded from Git because they are binary and may be large. Obtain them from their original sources or provide them locally, and check each model's license and redistribution terms before sharing. If any active file is absent, the related detection branch is unavailable.
 
-`unused/` contains other weight files found in this workspace. They are retained for reference and are not referenced by the current default detector configuration.

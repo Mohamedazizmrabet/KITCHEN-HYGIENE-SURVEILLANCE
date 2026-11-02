@@ -33,7 +33,7 @@ The default YOLO configuration in inference-service/config.py points to:
 - khawla_mask_vest.pt as an optional additional mask model.
 - yolov8n.pt as an optional person detector, using class 0.
 
-The YOLO detector loads each file if it exists. Therefore, these three files are the active/default model files in this checkout; this does not prove that all three load successfully on every machine. Other weights have been moved to inference-service/models/unused/ because the current default code does not reference them. The file named best.pt is not selected by the current configuration. Its name is generic, so it should not be described as the final chosen model without confirming its origin and evaluating it.
+The YOLO detector loads each file if it exists. Therefore, these three files are the active/default model files in this checkout; this does not prove that all three load successfully on every machine. The file named best.pt is not selected by the current configuration. Its name is generic, so it should not be described as the final chosen model without confirming its origin and evaluating it.
 
 YOLO and RT-DETR
 

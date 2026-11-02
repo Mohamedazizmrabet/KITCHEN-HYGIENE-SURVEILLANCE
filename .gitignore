@@ -26,7 +26,6 @@ inference-service/datasets/
 
 # Keep model directory structure in Git without committing weights
 !inference-service/models/README.md
-!inference-service/models/unused/README.md
 
 # Logs and runtime output
 inference-service/logs/*
